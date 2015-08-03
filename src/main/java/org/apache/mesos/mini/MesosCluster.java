@@ -1,9 +1,14 @@
 package org.apache.mesos.mini;
 
+import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.DockerException;
 import com.github.dockerjava.api.InternalServerErrorException;
+import com.github.dockerjava.api.command.ListContainersCmd;
+import com.github.dockerjava.core.DockerClientBuilder;
+import com.github.dockerjava.core.DockerClientConfig;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
+
 import org.apache.log4j.Logger;
 import org.apache.mesos.mini.container.AbstractContainer;
 import org.apache.mesos.mini.docker.DockerProxy;
@@ -43,7 +48,15 @@ public class MesosCluster extends ExternalResource {
 
     private MesosContainer mesosContainer;
 
-    public MesosCluster(MesosClusterConfig config) {
+    private DockerClient innerDockerClient;
+    
+    
+
+    public void setMesosContainer(MesosContainer mesosContainer) {
+		this.mesosContainer = mesosContainer;
+	}
+
+	public MesosCluster(MesosClusterConfig config) {
         this.config = config;
     }
 
@@ -52,6 +65,8 @@ public class MesosCluster extends ExternalResource {
      */
     public void start() {
         LOGGER.info("Starting Mesos cluster");
+        
+        ListContainersCmd cmds  =this.config.dockerClient.listContainersCmd();
 
         try {
             LOGGER.info("Starting Proxy");
@@ -69,6 +84,12 @@ public class MesosCluster extends ExternalResource {
             addAndStartContainer(mesosContainer);
             LOGGER.info("Started Mesos Local at " + mesosContainer.getMesosMasterURL());
 
+            DockerClientConfig.DockerClientConfigBuilder builder = DockerClientConfig.createDefaultConfigBuilder();
+            String innerDockerHost = "http://" + mesosContainer.getIpAddress() + ":2376";
+            builder.withUri(innerDockerHost);
+            DockerClientConfig innerDockerConfig = builder.build();
+            innerDockerClient = DockerClientBuilder.getInstance(innerDockerConfig).build();
+
             // wait until the given number of slaves are registered
             new MesosClusterStateResponse(mesosContainer.getMesosMasterURL(), config.numberOfSlaves).waitFor();
         } catch (Throwable e) {
@@ -82,13 +103,13 @@ public class MesosCluster extends ExternalResource {
      * Stops the Mesos cluster and its containers
      */
     public void stop() {
-        LOGGER.info("Stopping Mesos cluster");
+        /*LOGGER.info("Stopping Mesos cluster");
         for (AbstractContainer container : this.containers) {
             LOGGER.info("Removing container [" + container.getName() + "]");
             writeLog(container.getName(), container.getContainerId());
             container.remove();
         }
-        this.containers.clear();
+        this.containers.clear();*/
     }
 
     /**

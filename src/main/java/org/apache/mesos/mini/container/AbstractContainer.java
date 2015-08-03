@@ -2,7 +2,9 @@ package org.apache.mesos.mini.container;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
+import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.model.Container;
+
 import org.apache.log4j.Logger;
 import org.apache.mesos.mini.docker.ResponseCollector;
 
@@ -47,19 +49,12 @@ public abstract class AbstractContainer {
      * Starts the container and waits until is started
      */
     public void start() {
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                LOGGER.info("Shutdown hook - Removing container " + AbstractContainer.this.getName());
-                remove();
-            }
-        });
-
         pullImage();
 
         CreateContainerCmd createCommand = dockerCommand();
         LOGGER.debug("Creating container [" + createCommand.getName() + "]");
-        containerId = createCommand.exec().getId();
+        CreateContainerResponse response  = createCommand.exec();
+        containerId = response.getId();
 
         dockerClient.startContainerCmd(containerId).exec();
 
@@ -121,9 +116,5 @@ public abstract class AbstractContainer {
             }
             return false;
         }
-    }
-
-    @Override public String toString() {
-        return String.format("Container: %s (%s)", this.getName(), this.getContainerId());
     }
 }
